@@ -56,6 +56,9 @@ jobs:
       github_branch: "develop"
       cxx_standard: "17"
       prerelease: true
+    outputs:
+      draft_id_1: ${{ steps.draft_id_1.outputs.draft_id_1 }}
+      draft_id_2: ${{ steps.draft_id_2.outputs.draft_id_2 }}
 
     steps:
       - uses: actions/checkout@v3.1.0
@@ -210,9 +213,11 @@ jobs:
         run: mv -f "${{ matrix.name }}_${{ env.zlib_ng_version }}_${{ matrix.arch }}.deb" "${{ matrix.os_id }}-${{ matrix.os_version_id }}-${{ matrix.name }}-${{ matrix.arch }}.deb"
 
       - name: Host - "Create release - tag - assets"
+        id: release_id
         uses: ncipollo/release-action@v1.11.1
         with:
           prerelease: ${{ env.prerelease }}
+          draft: "true"
           artifacts: "${{ matrix.os_id }}-${{ matrix.os_version_id }}-${{ matrix.name }}-${{ matrix.arch }}.deb"
           replacesArtifacts: true
           tag: "${{ env.zlib_ng_version }}"
@@ -220,3 +225,28 @@ jobs:
           body: "${{ matrix.name }} built from github master on amd64 arm64 armhf for Debian Stretch Buster Bullseye and Ubuntu bionic Focal"
           allowUpdates: true
           token: "${{ secrets.GITHUB_TOKEN }}"
+
+      - name: process v1
+        id: draft_id_1
+        if: matrix.pretty_name == 'v1'
+        run: echo "draft_id_1=${{ steps.release_id.outputs.id }}" >> $GITHUB_OUTPUT
+
+      - name: process v2
+        id: draft_id_2
+        if: matrix.pretty_name == 'v2'
+        run: echo "draft_id_2=${{ steps.release_id.outputs.id }}" >> $GITHUB_OUTPUT
+
+  publish_draft:
+    name: Publish Drafts
+    runs-on: ubuntu-22.04
+    needs: [build]
+    steps:
+      - name: Update draft to release
+        run: |
+          drafts=("${{ needs.build.outputs.draft_id_1 }}" "${{ needs.build.outputs.draft_id_2 }}")
+          for d in "${drafts[@]}"; do 
+              curl -s \
+                -H "Accept: application/vnd.github+json" \
+                -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+                https://api.github.com/repos/${{ github.repository }}/releases/${d} -d '{"draft": "false"}'
+          done
