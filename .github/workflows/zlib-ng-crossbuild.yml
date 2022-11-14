@@ -214,7 +214,7 @@ jobs:
 
       - name: Host - "Create release - tag - assets"
         id: release_id
-        uses: ncipollo/release-action@v1.11.1
+        uses: ncipollo/release-action@v1.11.2
         with:
           prerelease: ${{ env.prerelease }}
           draft: "true"
