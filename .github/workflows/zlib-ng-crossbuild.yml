@@ -54,6 +54,7 @@ jobs:
       github_branch: "develop"
       cxx_standard: "17"
       prerelease: true
+      GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
     outputs:
       draft_id_1: ${{ steps.draft_id_1.outputs.draft_id_1 }}
       draft_id_2: ${{ steps.draft_id_2.outputs.draft_id_2 }}
@@ -225,7 +226,6 @@ jobs:
           name: "${{ matrix.name }} ${{ env.zlib_ng_version }}"
           body: "${{ matrix.name }} built from github master on amd64 arm64 armhf for Debian Stretch Buster Bullseye and Ubuntu bionic Focal"
           allowUpdates: true
-          token: "${{ secrets.GITHUB_TOKEN }}"
 
       - name: process v1
         id: draft_id_1
