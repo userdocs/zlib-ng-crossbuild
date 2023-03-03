@@ -246,8 +246,5 @@ jobs:
         run: |
           drafts=("${{ needs.build.outputs.draft_id_1 }}" "${{ needs.build.outputs.draft_id_2 }}")
           for d in "${drafts[@]}"; do 
-              curl -s \
-                -H "Accept: application/vnd.github+json" \
-                -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-                https://api.github.com/repos/${{ github.repository }}/releases/${d} -d '{"draft": "false"}'
+              gh api /repos/${{ github.repository }}/releases/${d} -d '{"draft": "false"}'
           done
