@@ -241,6 +241,8 @@ jobs:
     name: Publish Drafts
     runs-on: ubuntu-22.04
     needs: [build]
+    env:
+      GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
     steps:
       - name: Update draft to release
         run: |
