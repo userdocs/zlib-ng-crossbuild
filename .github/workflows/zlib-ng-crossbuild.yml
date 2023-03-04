@@ -230,12 +230,12 @@ jobs:
       - name: process v1
         id: draft_id_1
         if: matrix.pretty_name == 'v1'
-        run: echo "draft_id_1=${{ steps.release_id.outputs.id }}" >> $GITHUB_OUTPUT
+        run: echo "draft_id_1=${{ env.zlib_ng_version }}" >> $GITHUB_OUTPUT
 
       - name: process v2
         id: draft_id_2
         if: matrix.pretty_name == 'v2'
-        run: echo "draft_id_2=${{ steps.release_id.outputs.id }}" >> $GITHUB_OUTPUT
+        run: echo "draft_id_2=${{ env.zlib_ng_version }}" >> $GITHUB_OUTPUT
 
   publish_draft:
     name: Publish Drafts
@@ -246,5 +246,5 @@ jobs:
         run: |
           drafts=("${{ needs.build.outputs.draft_id_1 }}" "${{ needs.build.outputs.draft_id_2 }}")
           for d in "${drafts[@]}"; do 
-              gh api /repos/${{ github.repository }}/releases/${d} -d '{"draft": "false"}'
+              gh release edit 1.2.13 --draft=false
           done
