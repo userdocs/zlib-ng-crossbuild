@@ -244,6 +244,8 @@ jobs:
     env:
       GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
     steps:
+      - uses: actions/checkout@v3
+        
       - name: Update draft to release
         run: |
           drafts=("${{ needs.build.outputs.draft_id_1 }}" "${{ needs.build.outputs.draft_id_2 }}")
