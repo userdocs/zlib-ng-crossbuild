@@ -248,5 +248,5 @@ jobs:
         run: |
           drafts=("${{ needs.build.outputs.draft_id_1 }}" "${{ needs.build.outputs.draft_id_2 }}")
           for d in "${drafts[@]}"; do 
-              gh release edit 1.2.13 --draft=false
+              gh release edit "${d}" --draft=false
           done
