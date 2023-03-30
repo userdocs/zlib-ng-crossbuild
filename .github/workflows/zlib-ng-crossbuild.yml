@@ -1,6 +1,10 @@
-name: zlib-ng+crossbuild+package+release
+name: zlib-ng crossbuild package release
 on:
   workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build:
@@ -14,12 +18,6 @@ jobs:
         arch: [amd64, armhf, arm64]
         zlib_compat: ["", "-D ZLIB_COMPAT=ON"]
         include:
-          - arch: amd64
-            CHOST: "x86_64-linux-gnu"
-          - arch: armhf
-            CHOST: "arm-linux-gnueabihf"
-          - arch: arm64
-            CHOST: "aarch64-linux-gnu"
           - zlib_compat: ""
             pretty_name: v2
             header_name: ZLIBNG_VERSION
@@ -100,19 +98,19 @@ jobs:
 
       - name: Docker target - Cmake ${{ matrix.name }}
         run: |
-          docker exec -w /root/${{ matrix.name }} multiarch cmake -Wno-dev -Wno-deprecated -G Ninja -B build \
+          docker exec -w /home/github/${{ matrix.name }} multiarch cmake -Wno-dev -Wno-deprecated -G Ninja -B build \
           ${{ matrix.zlib_compat }} \
           -D CMAKE_VERBOSE_MAKEFILE="ON" \
           -D CMAKE_CXX_STANDARD="${{ env.cxx_standard }}" \
           -D CMAKE_CXX_STANDARD_REQUIRED=ON \
           -D CMAKE_CXX_EXTENSIONS=OFF \
-          -D CMAKE_INSTALL_PREFIX="/root/build/${{ env.opt_dir_name }}"
+          -D CMAKE_INSTALL_PREFIX="/home/github/build/${{ env.opt_dir_name }}"
 
       - name: Docker target - ${{ matrix.name }} - cmake build
-        run: docker exec -w /root/${{ matrix.name }} multiarch cmake --build build
+        run: docker exec -w /home/github/${{ matrix.name }} multiarch cmake --build build
 
       - name: Docker target - ${{ matrix.name }} - cmake install
-        run: docker exec -w /root/${{ matrix.name }} multiarch cmake --install build
+        run: docker exec -w /home/github/${{ matrix.name }} multiarch cmake --install build
 
       - name: Host - Set zlib release version
         if: matrix.pretty_name == 'v1'
@@ -124,8 +122,8 @@ jobs:
 
       - name: Docker target - ldconfig - create /etc/ld.so.conf.d/zlib-ng.conf
         run: |
-          docker exec -w /root/build multiarch mkdir -p etc/ld.so.conf.d
-          docker exec -w /root/build/etc/ld.so.conf.d multiarch bash -c "echo '/${{ env.opt_dir_name }}/lib' > zlib-ng.conf"
+          docker exec -w /home/github/build multiarch mkdir -p etc/ld.so.conf.d
+          docker exec -w /home/github/build/etc/ld.so.conf.d multiarch bash -c "echo '/${{ env.opt_dir_name }}/lib' > zlib-ng.conf"
 
       - name: Host - Create deb packages
         uses: jiro4989/build-deb-action@v2
