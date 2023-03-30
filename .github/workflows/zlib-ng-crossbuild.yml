@@ -85,18 +85,18 @@ jobs:
 
       ###############################################
 
-      - name: Docker target - cmake and ninja download and install
+      - name: Docker - cmake and ninja download and install
         run: |
           docker exec multiarch curl -sNL "https://github.com/userdocs/cmake-crossbuild/releases/latest/download/${{ matrix.os_id }}-${{ matrix.os_codename }}-cmake-${{ matrix.arch }}.deb" -o ${{ matrix.os_id }}-${{ matrix.os_codename }}-cmake-${{ matrix.arch }}.deb
           docker exec multiarch sudo dpkg -i ${{ matrix.os_id }}-${{ matrix.os_codename }}-cmake-${{ matrix.arch }}.deb
 
-      - name: Host - Git clone ${{ matrix.name }} develop
+      - name: Host - Git clone ${{ matrix.name }} ${{ env.github_branch }}
         run: git clone --single-branch --branch "${{ env.github_branch }}" --shallow-submodules --recurse-submodules --depth 1 https://github.com/zlib-ng/zlib-ng.git ${{ matrix.name }}
 
-      - name: Host - Set zlib version to variable
+      - name: Host - Set ${{ matrix.name }} version to variable
         run: echo "zlib_ng_version=$(cat ${{ matrix.name }}/zlib.h.in | sed -rn 's|#define ${{ matrix.header_name }} "(.*)"|\1|p' | sed 's/\.[^.]*$//')" >> $GITHUB_ENV
 
-      - name: Docker target - Cmake ${{ matrix.name }}
+      - name: Docker - ${{ matrix.name }} configure
         run: |
           docker exec -w /home/github/${{ matrix.name }} multiarch cmake -Wno-dev -Wno-deprecated -G Ninja -B build \
           ${{ matrix.zlib_compat }} \
@@ -106,10 +106,10 @@ jobs:
           -D CMAKE_CXX_EXTENSIONS=OFF \
           -D CMAKE_INSTALL_PREFIX="/home/github/build/${{ env.opt_dir_name }}"
 
-      - name: Docker target - ${{ matrix.name }} - cmake build
+      - name: Docker - ${{ matrix.name }} - cmake build
         run: docker exec -w /home/github/${{ matrix.name }} multiarch cmake --build build
 
-      - name: Docker target - ${{ matrix.name }} - cmake install
+      - name: Docker - ${{ matrix.name }} - cmake install
         run: docker exec -w /home/github/${{ matrix.name }} multiarch cmake --install build
 
       - name: Host - Set zlib release version
@@ -117,10 +117,10 @@ jobs:
         run: |
           echo "prerelease=false" >> $GITHUB_ENV
 
-      - name: Docker target - Set deb dependencies for ${{ matrix.name }}
+      - name: Docker - Set deb dependencies for ${{ matrix.name }}
         run: echo "zlib-ng-deb-deps=none" >> $GITHUB_ENV
 
-      - name: Docker target - ldconfig - create /etc/ld.so.conf.d/zlib-ng.conf
+      - name: Docker - ldconfig - create /etc/ld.so.conf.d/zlib-ng.conf
         run: |
           docker exec -w /home/github/build multiarch mkdir -p etc/ld.so.conf.d
           docker exec -w /home/github/build/etc/ld.so.conf.d multiarch bash -c "echo '/${{ env.opt_dir_name }}/lib' > zlib-ng.conf"
@@ -165,7 +165,7 @@ jobs:
 
   publish_draft:
     name: Publish Drafts
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     needs: [build]
     env:
       GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
