@@ -58,8 +58,6 @@ jobs:
       draft_id_2: ${{ steps.draft_id_2.outputs.draft_id_2 }}
 
     steps:
-      - uses: actions/checkout@v3
-
       - name: Host - Checkout action
         uses: actions/checkout@v3
 
@@ -74,8 +72,8 @@ jobs:
       - name: Host - update
         run: sudo apt-get update
 
-      - name: Host - upgrade
-        run: sudo apt-get -y upgrade
+      # - name: Host - upgrade
+      #   run: sudo apt-get -y upgrade
 
       - name: Host - set up qemu-user-static binfmt-support from lunar
         run: sudo apt install -t lunar libpipeline1 qemu-user-static binfmt-support
@@ -92,6 +90,8 @@ jobs:
 
       - name: Host - Create docker multiarch ${{ matrix.arch }} container
         run: docker run --name multiarch -it -d -w /root -v ${{ github.workspace }}:/root ghcr.io/userdocs/dcb:${{ matrix.os_id }}-${{ matrix.os_codename }}-${{ matrix.arch }}
+
+      ###############################################
 
       - name: Docker target - cmake and ninja download and install
         run: |
