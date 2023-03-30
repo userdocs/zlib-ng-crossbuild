@@ -16,16 +16,10 @@ jobs:
         include:
           - arch: amd64
             CHOST: "x86_64-linux-gnu"
-            docker_arch: amd64
-            docker_platform: linux/amd64
           - arch: armhf
             CHOST: "arm-linux-gnueabihf"
-            docker_arch: arm32v7
-            docker_platform: linux/arm/v7
           - arch: arm64
             CHOST: "aarch64-linux-gnu"
-            docker_arch: arm64v8
-            docker_platform: linux/arm64/v8
           - zlib_compat: ""
             pretty_name: v2
             header_name: ZLIBNG_VERSION
@@ -98,8 +92,8 @@ jobs:
           docker exec multiarch curl -sNL "https://github.com/userdocs/cmake-crossbuild/releases/latest/download/${{ matrix.os_id }}-${{ matrix.os_codename }}-cmake-${{ matrix.arch }}.deb" -o ${{ matrix.os_id }}-${{ matrix.os_codename }}-cmake-${{ matrix.arch }}.deb
           docker exec multiarch dpkg -i ${{ matrix.os_id }}-${{ matrix.os_codename }}-cmake-${{ matrix.arch }}.deb
 
-      - name: Docker target - Git clone ${{ matrix.name }} develop
-        run: docker exec -w /root multiarch git clone --single-branch --branch "${{ env.github_branch }}" --shallow-submodules --recurse-submodules --depth 1 https://github.com/zlib-ng/zlib-ng.git /root/${{ matrix.name }}
+      - name: Host - Git clone ${{ matrix.name }} develop
+        run: git clone --single-branch --branch "${{ env.github_branch }}" --shallow-submodules --recurse-submodules --depth 1 https://github.com/zlib-ng/zlib-ng.git /root/${{ matrix.name }}
 
       - name: Host - Set zlib version to variable
         run: echo "zlib_ng_version=$(cat ${{ matrix.name }}/zlib.h.in | sed -rn 's|#define ${{ matrix.header_name }} "(.*)"|\1|p' | sed 's/\.[^.]*$//')" >> $GITHUB_ENV
