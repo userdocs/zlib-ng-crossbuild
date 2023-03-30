@@ -93,7 +93,7 @@ jobs:
           docker exec multiarch dpkg -i ${{ matrix.os_id }}-${{ matrix.os_codename }}-cmake-${{ matrix.arch }}.deb
 
       - name: Host - Git clone ${{ matrix.name }} develop
-        run: git clone --single-branch --branch "${{ env.github_branch }}" --shallow-submodules --recurse-submodules --depth 1 https://github.com/zlib-ng/zlib-ng.git /root/${{ matrix.name }}
+        run: git clone --single-branch --branch "${{ env.github_branch }}" --shallow-submodules --recurse-submodules --depth 1 https://github.com/zlib-ng/zlib-ng.git ${{ matrix.name }}
 
       - name: Host - Set zlib version to variable
         run: echo "zlib_ng_version=$(cat ${{ matrix.name }}/zlib.h.in | sed -rn 's|#define ${{ matrix.header_name }} "(.*)"|\1|p' | sed 's/\.[^.]*$//')" >> $GITHUB_ENV
@@ -104,6 +104,8 @@ jobs:
           ${{ matrix.zlib_compat }} \
           -D CMAKE_VERBOSE_MAKEFILE="ON" \
           -D CMAKE_CXX_STANDARD="${{ env.cxx_standard }}" \
+          -D CMAKE_CXX_STANDARD_REQUIRED=ON \
+          -D CMAKE_CXX_EXTENSIONS=OFF \
           -D CMAKE_INSTALL_PREFIX="/root/build/${{ env.opt_dir_name }}"
 
       - name: Docker target - ${{ matrix.name }} - cmake build
