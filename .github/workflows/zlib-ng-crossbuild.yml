@@ -83,7 +83,7 @@ jobs:
       ### https://github.com/userdocs/dcb/blob/main/Dockerfile
 
       - name: Host - Create docker multiarch ${{ matrix.arch }} container
-        run: docker run --name multiarch -it -d -u 1001 -w /root -v ${{ github.workspace }}:/home/github ghcr.io/userdocs/dcb:${{ matrix.os_id }}-${{ matrix.os_codename }}-${{ matrix.arch }}
+        run: docker run --name multiarch -it -d -u 1001 -v ${{ github.workspace }}:/home/github ghcr.io/userdocs/dcb:${{ matrix.os_id }}-${{ matrix.os_codename }}-${{ matrix.arch }}
 
       ###############################################
 
