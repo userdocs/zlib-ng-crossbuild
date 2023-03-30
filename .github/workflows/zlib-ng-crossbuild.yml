@@ -49,8 +49,6 @@ jobs:
     name: ${{ matrix.arch }} ${{ matrix.os_id }}:${{ matrix.os_codename }} ${{ matrix.name }} ${{ matrix.pretty_name }}
     env:
       opt_dir_name: "opt/local"
-      include_dir: "/opt/local/include"
-      lib_dir: "/opt/local/lib"
       github_branch: "develop"
       cxx_standard: "17"
       prerelease: true
@@ -97,28 +95,28 @@ jobs:
 
       - name: Docker target - cmake and ninja download and install
         run: |
-          docker exec --env-file env.custom multiarch curl -sNL "https://github.com/userdocs/cmake-crossbuild/releases/latest/download/${{ matrix.os_id }}-${{ matrix.os_codename }}-cmake-${{ matrix.arch }}.deb" -o ${{ matrix.os_id }}-${{ matrix.os_codename }}-cmake-${{ matrix.arch }}.deb
-          docker exec --env-file env.custom multiarch dpkg -i ${{ matrix.os_id }}-${{ matrix.os_codename }}-cmake-${{ matrix.arch }}.deb
+          docker exec multiarch curl -sNL "https://github.com/userdocs/cmake-crossbuild/releases/latest/download/${{ matrix.os_id }}-${{ matrix.os_codename }}-cmake-${{ matrix.arch }}.deb" -o ${{ matrix.os_id }}-${{ matrix.os_codename }}-cmake-${{ matrix.arch }}.deb
+          docker exec multiarch dpkg -i ${{ matrix.os_id }}-${{ matrix.os_codename }}-cmake-${{ matrix.arch }}.deb
 
       - name: Docker target - Git clone ${{ matrix.name }} develop
-        run: docker exec --env-file env.custom -w /root multiarch git clone --single-branch --branch "${{ env.github_branch }}" --shallow-submodules --recurse-submodules --depth 1 https://github.com/zlib-ng/zlib-ng.git /root/${{ matrix.name }}
+        run: docker exec -w /root multiarch git clone --single-branch --branch "${{ env.github_branch }}" --shallow-submodules --recurse-submodules --depth 1 https://github.com/zlib-ng/zlib-ng.git /root/${{ matrix.name }}
 
       - name: Host - Set zlib version to variable
         run: echo "zlib_ng_version=$(cat ${{ matrix.name }}/zlib.h.in | sed -rn 's|#define ${{ matrix.header_name }} "(.*)"|\1|p' | sed 's/\.[^.]*$//')" >> $GITHUB_ENV
 
       - name: Docker target - Cmake ${{ matrix.name }}
         run: |
-          docker exec --env-file env.custom -w /root/${{ matrix.name }} multiarch cmake -Wno-dev -Wno-deprecated -G Ninja -B build \
+          docker exec -w /root/${{ matrix.name }} multiarch cmake -Wno-dev -Wno-deprecated -G Ninja -B build \
           ${{ matrix.zlib_compat }} \
           -D CMAKE_VERBOSE_MAKEFILE="ON" \
           -D CMAKE_CXX_STANDARD="${{ env.cxx_standard }}" \
           -D CMAKE_INSTALL_PREFIX="/root/build/${{ env.opt_dir_name }}"
 
       - name: Docker target - ${{ matrix.name }} - cmake build
-        run: docker exec --env-file env.custom -w /root/${{ matrix.name }} multiarch cmake --build build
+        run: docker exec -w /root/${{ matrix.name }} multiarch cmake --build build
 
       - name: Docker target - ${{ matrix.name }} - cmake install
-        run: docker exec --env-file env.custom -w /root/${{ matrix.name }} multiarch cmake --install build
+        run: docker exec -w /root/${{ matrix.name }} multiarch cmake --install build
 
       - name: Host - Set zlib release version
         if: matrix.pretty_name == 'v1'
@@ -130,8 +128,8 @@ jobs:
 
       - name: Docker target - ldconfig - create /etc/ld.so.conf.d/zlib-ng.conf
         run: |
-          docker exec --env-file env.custom -w /root/build multiarch mkdir -p etc/ld.so.conf.d
-          docker exec --env-file env.custom -w /root/build/etc/ld.so.conf.d multiarch bash -c "echo '/${{ env.opt_dir_name }}/lib' > zlib-ng.conf"
+          docker exec -w /root/build multiarch mkdir -p etc/ld.so.conf.d
+          docker exec -w /root/build/etc/ld.so.conf.d multiarch bash -c "echo '/${{ env.opt_dir_name }}/lib' > zlib-ng.conf"
 
       - name: Host - Create deb packages
         uses: jiro4989/build-deb-action@v2
