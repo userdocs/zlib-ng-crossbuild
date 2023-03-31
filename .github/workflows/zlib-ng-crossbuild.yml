@@ -214,3 +214,20 @@ jobs:
           name: "${{ matrix.name }} ${{ env.zlib_ng_version }}"
           body: "${{ matrix.name }} built from github master on amd64 arm64 armhf for Debian Stretch Buster Bullseye and Ubuntu bionic Focal"
           allowUpdates: true
+
+  rerun:
+    name: rerun
+    needs: build
+    permissions: 
+      actions: write
+    runs-on: ubuntu-latest
+    if: ${{ failure() }}
+    env:
+      GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
+    steps:
+      - name: trigger workflow - rerun
+        uses: benc-uk/workflow-dispatch@v1
+        with:
+          workflow: "rerun.yml"
+          repo: "userdocs/zlib-ng-crossbuild"
+          inputs: '{ "run_id": "${{ github.run_id }}", "attempts": "${{ github.run_attempt }}" }'
