@@ -44,7 +44,7 @@ jobs:
           - os_id: ubuntu
             os_codename: bullseye
 
-    name: ${{ matrix.os_id }}:${{ matrix.os_codename }} ${{ matrix.name }} ${{ matrix.arch }} ${{ matrix.pretty_name }}
+    name: ${{ matrix.os_id }}:${{ matrix.os_codename }} ${{ matrix.name }}${{ matrix.pretty_name }} ${{ matrix.arch }}
     env:
       opt_dir_name: "opt/local"
       github_branch: "develop"
@@ -207,7 +207,7 @@ jobs:
         id: release_id
         uses: ncipollo/release-action@v1
         with:
-          prerelease: ${{ env.prerelease }}
+          prerelease: ${{ matrix.prerelease }}
           artifacts: releases/*.deb
           replacesArtifacts: true
           tag: "${{ env.zlib_ng_version }}"
