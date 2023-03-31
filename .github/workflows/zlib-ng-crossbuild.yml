@@ -204,7 +204,6 @@ jobs:
           echo "zlib_ng_version=${{ env.zlib_ng_v2 }}" >> $GITHUB_ENV
 
       - name: Host - "Create release - tag - assets"
-        id: release_id
         uses: ncipollo/release-action@v1
         with:
           prerelease: ${{ matrix.prerelease }}
