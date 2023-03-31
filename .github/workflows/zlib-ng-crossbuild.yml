@@ -6,9 +6,15 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
+    outputs:
+      zlib_ng_v1: ${{ steps.version_info.outputs.zlib_ng_v1 }}
+      zlib_ng_v2: ${{ steps.version_info.outputs.zlib_ng_v2 }}
     strategy:
       fail-fast: false
       matrix:
@@ -45,17 +51,16 @@ jobs:
       cxx_standard: "17"
       prerelease: true
       GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
-    outputs:
-      draft_id_1: ${{ steps.draft_id_1.outputs.draft_id_1 }}
-      draft_id_2: ${{ steps.draft_id_2.outputs.draft_id_2 }}
 
     steps:
       - name: Host - Checkout action
         uses: actions/checkout@v3
 
-      - name: Host - phased updates # https://github.com/actions/runner-images/issues/7192
+      # Fix this bug https://github.com/actions/runner-images/issues/7192
+      - name: Host - phased updates
         run: echo 'APT::Get::Always-Include-Phased-Updates "false";' | sudo tee /etc/apt/apt.conf.d/99-phased-updates
 
+      # Bootstrap Ubuntu Lunar repo so that we can install specific app we may need, like binfmt and qemu-user-static
       - name: Host - set up lunar repo -t lunar
         run: |
           printf '%b\n' 'Package: *\nPin: release n=lunar\nPin-Priority: 50' | sudo tee /etc/apt/preferences
@@ -67,23 +72,25 @@ jobs:
       # - name: Host - upgrade
       #   run: sudo apt-get -y upgrade
 
+      # No action or other method to bootstrap binfmt. Install from lunar and we get the latest versions and full docker support
       - name: Host - set up qemu-user-static binfmt-support from lunar
         run: sudo apt install -t lunar libpipeline1 qemu-user-static binfmt-support
 
-      ### Why are we doing it like this and not using a container setup? That's how you're supposed to do it right?
-      ### qemu-user-static and binfmt-support are not part of the runner imager https://github.com/actions/runner-images/blob/main/images/linux/Ubuntu2204-Readme.md
-      ### We would need to modify the runner to install these before the container starts. Which you cannot do as there is no way to bootstrap the host.
-      ### So we install them on the host then create/pull a custom docker image that we use to build teh multiarch targets.
-      ### We are always on the host runner but can use any docker image we need with the access the qemu emulation required.
-      ###
-      ### We are using these pre configured toolchain images that allows me to remove 50% of the code/time from this action.
-      ###
-      ### https://github.com/userdocs/dcb/blob/main/Dockerfile
+      # Why are we doing it like this and not using a container setup? That's how you're supposed to do it, right?
+      # qemu-user-static and binfmt-support are not part of the runner images https://github.com/actions/runner-images/blob/main/images/linux/Ubuntu2204-Readme.md
+      # We would need to modify the runner to install these before the container starts. Which you cannot do as there is no way to bootstrap the host.
+      # So we install them on the host then create/pull a custom docker image that we use to build the multiarch targets.
+      # We are always on the host runner but can use any docker image we need with the access the qemu emulation when required.
+      #
+      # We are using these pre configured toolchain images that allows me to remove 50% of the code/time from this action.
+      #
+      # https://github.com/userdocs/dcb/blob/main/Dockerfile
+      #
+      # The image does not run as root and has password-less sudo. There are two users username:1000 /home/username and github:1001 /home/github
+      # In the action it runs as 1001 /home/github and files should be available to the host. For local use, you might need -u 1000
 
       - name: Host - Create docker multiarch ${{ matrix.arch }} container
         run: docker run --name multiarch -it -d -u 1001 -v ${{ github.workspace }}:/home/github ghcr.io/userdocs/dcb:${{ matrix.os_id }}-${{ matrix.os_codename }}-${{ matrix.arch }}
-
-      ###############################################
 
       - name: Docker - cmake and ninja download and install
         run: |
@@ -140,39 +147,70 @@ jobs:
       - name: Host - Remove version from release name and use hyphens
         run: mv -f "${{ matrix.name }}_${{ env.zlib_ng_version }}_${{ matrix.arch }}.deb" "${{ matrix.os_id }}-${{ matrix.os_codename }}-${{ matrix.name }}-${{ matrix.arch }}.deb"
 
+      - name: Info
+        id: version_info
+        run: |          
+          echo "zlib_ng_${{ matrix.pretty_name }}=${{ env.zlib_ng_version }}" >> $GITHUB_OUTPUT
+
+      - name: Host - upload deb packages
+        uses: actions/upload-artifact@v3
+        with:
+          name: "${{ matrix.pretty_name }}-${{ matrix.os_id }}-${{ matrix.os_codename }}-${{ matrix.name }}-${{ matrix.arch }}-deb"
+          path: "${{ matrix.os_id }}-${{ matrix.os_codename }}-${{ matrix.name }}-${{ matrix.arch }}.deb"
+
+  release:
+    name: Upload artifacts to release
+    runs-on: ubuntu-latest
+    needs: build
+    if: always() && contains(needs.*.result, 'success') && !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled')
+    strategy:
+      fail-fast: false
+      matrix:
+        name: [zlib-ng]
+        zlib_ng_version: ["v1", "v2"]
+        include:
+          - zlib_ng_version: "v1"
+            prerelease: false
+
+          - zlib_ng_version: "v2"
+            prerelease: true
+    env:
+      GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
+      zlib_ng_v1: "${{ needs.build.outputs.zlib_ng_v1 }}"
+      zlib_ng_v2: "${{ needs.build.outputs.zlib_ng_v2 }}"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Host - Download artifacts
+        uses: actions/download-artifact@v3
+
+      - name: Host - v1 artifacts organise for release
+        if: matrix.zlib_ng_version == 'v1'
+        run: |
+          mkdir -p "releases"
+          for files in v1-*-deb; do
+              cp -rf ${files}/* "releases/"
+          done
+          echo "zlib_ng_version=${{ env.zlib_ng_v1 }}" >> $GITHUB_ENV
+
+      - name: Host - v2 artifacts organise for release
+        if: matrix.zlib_ng_version == 'v2'
+        run: |
+          mkdir -p "releases"
+          for files in v2-*-deb; do
+              cp -rf ${files}/* "releases/"
+          done
+          echo "zlib_ng_version=${{ env.zlib_ng_v2 }}" >> $GITHUB_ENV
+
       - name: Host - "Create release - tag - assets"
         id: release_id
         uses: ncipollo/release-action@v1
         with:
           prerelease: ${{ env.prerelease }}
-          draft: "true"
-          artifacts: "${{ matrix.os_id }}-${{ matrix.os_codename }}-${{ matrix.name }}-${{ matrix.arch }}.deb"
+          artifacts: releases/*.deb
           replacesArtifacts: true
           tag: "${{ env.zlib_ng_version }}"
           name: "${{ matrix.name }} ${{ env.zlib_ng_version }}"
           body: "${{ matrix.name }} built from github master on amd64 arm64 armhf for Debian Stretch Buster Bullseye and Ubuntu bionic Focal"
           allowUpdates: true
-
-      - name: process v1
-        id: draft_id_1
-        if: matrix.pretty_name == 'v1'
-        run: echo "draft_id_1=${{ steps.release_id.outputs.id }}" >> $GITHUB_OUTPUT
-
-      - name: process v2
-        id: draft_id_2
-        if: matrix.pretty_name == 'v2'
-        run: echo "draft_id_2=${{ steps.release_id.outputs.id }}" >> $GITHUB_OUTPUT
-
-  publish_draft:
-    name: Publish Drafts
-    runs-on: ubuntu-latest
-    needs: [build]
-    env:
-      GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
-    steps:
-      - name: Update draft to release
-        run: |
-          drafts=("${{ needs.build.outputs.draft_id_1 }}" "${{ needs.build.outputs.draft_id_2 }}")
-          for d in "${drafts[@]}"; do
-              gh api --silent /repos/${{ github.repository }}/releases/${d} -F 'draft=false'
-          done
