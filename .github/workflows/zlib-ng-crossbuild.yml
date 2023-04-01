@@ -1,6 +1,12 @@
 name: zlib-ng crossbuild package release
+
 on:
   workflow_dispatch:
+    inputs:
+      skip_rerun:
+        description: "Skip rerun?"
+        required: true
+        type: boolean
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -49,7 +55,6 @@ jobs:
       opt_dir_name: "opt/local"
       github_branch: "develop"
       cxx_standard: "17"
-      prerelease: true
       GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
 
     steps:
@@ -119,11 +124,6 @@ jobs:
       - name: Docker - ${{ matrix.name }} - cmake install
         run: docker exec -w /home/github/${{ matrix.name }} multiarch cmake --install build
 
-      - name: Host - Set zlib release version
-        if: matrix.pretty_name == 'v1'
-        run: |
-          echo "prerelease=false" >> $GITHUB_ENV
-
       - name: Docker - Set deb dependencies for ${{ matrix.name }}
         run: echo "zlib-ng-deb-deps=none" >> $GITHUB_ENV
 
@@ -149,7 +149,7 @@ jobs:
 
       - name: Info
         id: version_info
-        run: |          
+        run: |
           echo "zlib_ng_${{ matrix.pretty_name }}=${{ env.zlib_ng_version }}" >> $GITHUB_OUTPUT
 
       - name: Host - upload deb packages
@@ -215,7 +215,7 @@ jobs:
           allowUpdates: true
 
   rerun-on-failure:
-    if: ${{ failure() }}
+    if: failure() && inputs.skip_rerun == '0'
     name: rerun-on-failure
     needs: release
     permissions:
