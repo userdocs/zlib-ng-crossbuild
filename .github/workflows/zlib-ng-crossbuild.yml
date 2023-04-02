@@ -114,8 +114,8 @@ jobs:
       - name: Host - Set ${{ matrix.name }} version to variable
         id: version_info
         run: |
-          printf '%s' "zlib_ng_version=$(cat ${{ matrix.name }}/zlib.h.in | sed -rn 's|#define ${{ matrix.header_name }} "(.*)"|\1|p' | sed 's/\.[^.]*$//')" >> $GITHUB_ENV
-          printf '%s' "zlib_ng_${{ matrix.pretty_name }}=${zlib_ng_version}" >> $GITHUB_OUTPUT
+          printf '%s\n' "zlib_ng_version=$(cat ${{ matrix.name }}/zlib.h.in | sed -rn 's|#define ${{ matrix.header_name }} "(.*)"|\1|p' | sed 's/\.[^.]*$//')" >> $GITHUB_ENV
+          printf '%s\n' "zlib_ng_${{ matrix.pretty_name }}=${zlib_ng_version}" >> $GITHUB_OUTPUT
 
       - name: Docker - ${{ matrix.name }} configure
         run: 
@@ -134,12 +134,12 @@ jobs:
         run: docker exec -w /home/github/${{ matrix.name }} multiarch cmake --install build
 
       - name: Docker - Set deb dependencies for ${{ matrix.name }}
-        run: printf '%s' "zlib-ng-deb-deps=none" >> $GITHUB_ENV
+        run: printf '%s\n' "zlib-ng-deb-deps=none" >> $GITHUB_ENV
 
       - name: Docker - ldconfig - create /etc/ld.so.conf.d/zlib-ng.conf
         run: |
           docker exec -w /home/github/build multiarch mkdir -p etc/ld.so.conf.d
-          docker exec -w /home/github/build/etc/ld.so.conf.d multiarch bash -c "printf '%s' '/${{ env.opt_dir_name }}/lib' > zlib-ng.conf"
+          docker exec -w /home/github/build/etc/ld.so.conf.d multiarch bash -c "printf '%s\n' '/${{ env.opt_dir_name }}/lib' > zlib-ng.conf"
 
       - name: Host - Create deb packages
         uses: jiro4989/build-deb-action@v2
@@ -196,7 +196,7 @@ jobs:
           for files in v1-*-deb; do
               cp -rf ${files}/* "releases/"
           done
-          printf '%s' "zlib_ng_version=${{ env.zlib_ng_v1 }}" >> $GITHUB_ENV
+          printf '%s\n' "zlib_ng_version=${{ env.zlib_ng_v1 }}" >> $GITHUB_ENV
 
       - name: Host - v2 artifacts organise for release
         if: matrix.zlib_ng_version == 'v2'
@@ -205,7 +205,7 @@ jobs:
           for files in v2-*-deb; do
               cp -rf ${files}/* "releases/"
           done
-          printf '%s' "zlib_ng_version=${{ env.zlib_ng_v2 }}" >> $GITHUB_ENV
+          printf '%s\n' "zlib_ng_version=${{ env.zlib_ng_v2 }}" >> $GITHUB_ENV
 
       - name: Host - "Create release - tag - assets"
         uses: ncipollo/release-action@v1
