@@ -115,7 +115,9 @@ jobs:
       - name: Host - Set ${{ matrix.name }} version to variable
         id: version_info
         run: |
-          printf '%s\n' "zlib_ng_version=$(cat ${{ matrix.name }}/zlib.h.in | sed -rn 's|#define ${{ matrix.header_name }} "(.*)"|\1|p' | sed 's/\.[^.]*$//')" >> $GITHUB_ENV
+          zlib_ng_version="$(cat ${{ matrix.name }}/zlib.h.in | sed -rn 's|#define ${{ matrix.header_name }} "(.*)"|\1|p' | sed 's/\.[^.]*$//')"
+
+          printf '%s\n' "zlib_ng_version=${zlib_ng_version}" >> $GITHUB_ENV
           printf '%s\n' "zlib_ng_${{ matrix.pretty_name }}=${zlib_ng_version}" >> $GITHUB_OUTPUT
 
       - name: Docker - ${{ matrix.name }} configure
