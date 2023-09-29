@@ -44,13 +44,11 @@ jobs:
             header_name: ZLIB_VERSION
         exclude:
           - os_id: debian
-            os_codename: bionic
-          - os_id: debian
             os_codename: focal
           - os_id: debian
             os_codename: jammy
-          - os_id: ubuntu
-            os_codename: buster
+          - os_id: debian
+            os_codename: mantic
           - os_id: ubuntu
             os_codename: bullseye
           - os_id: ubuntu
