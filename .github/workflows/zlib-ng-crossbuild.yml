@@ -214,7 +214,7 @@ jobs:
           replacesArtifacts: true
           tag: "${{ env.zlib_ng_version }}"
           name: "${{ matrix.name }} ${{ env.zlib_ng_version }}"
-          body: "${{ matrix.name }} built from github master on amd64 arm64 armhf for Debian Stretch Buster Bullseye and Ubuntu bionic Focal"
+          body: "${{ matrix.name }} built from github master on amd64 arm64 armhf for Debian Bullseye Bookworm and Ubuntu Focal Jammy Mantic"
           allowUpdates: true
 
   rerun-on-failure:
