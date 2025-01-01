@@ -61,7 +61,7 @@ jobs:
       opt_dir_name: "opt/local"
       github_branch: "develop"
       cxx_standard: "17"
-      GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
+      GH_TOKEN: "${{ github.token }}"
 
     steps:
       - name: Host - Checkout action
@@ -220,7 +220,7 @@ jobs:
       actions: write
     runs-on: ubuntu-latest
     env:
-      GH_TOKEN: "${{ github.TOKEN }}"
+      GH_TOKEN: "${{ github.token }}"
     steps:
       - uses: actions/checkout@v4
       - name: Trigger rerun workflow on job failures
