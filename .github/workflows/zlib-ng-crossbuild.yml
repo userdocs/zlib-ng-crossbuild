@@ -18,9 +18,13 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+permissions: {}
+
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
     outputs:
       zlib_ng_v1: ${{ steps.version_info.outputs.zlib_ng_v1 }}
       zlib_ng_v2: ${{ steps.version_info.outputs.zlib_ng_v2 }}
@@ -56,7 +60,7 @@ jobs:
     env:
       opt_dir_name: "opt/local"
       github_branch: "develop"
-      cxx_standard: "17"
+      cxx_standard: "20"
       GH_TOKEN: "${{ github.token }}"
 
     steps:
@@ -65,40 +69,16 @@ jobs:
         with:
           persist-credentials: false
 
-      # Fix this bug https://github.com/actions/runner-images/issues/7192
-      - name: Host - phased updates
-        run: printf '%s\n' 'APT::Get::Always-Include-Phased-Updates "false";' | sudo tee /etc/apt/apt.conf.d/99-phased-updates
-
-      - name: Host - update
-        run: sudo apt-get update
-
-      - name: Host - upgrade
-        run: sudo apt-get -y upgrade
-
-      # No action or other method to bootstrap binfmt-support and qemu-user-static on the host runner
       - name: Host - set up qemu-user-static binfmt-support
         run: sudo apt install libpipeline1 qemu-user-static binfmt-support
 
-      # Why are we doing it like this and not using a container setup? That's how you're supposed to do it, right?
-      # qemu-user-static and binfmt-support are not part of the runner images https://github.com/actions/runner-images?tab=readme-ov-file#available-images
-      # We would need to modify the runner to install these before the container starts. Which you cannot do as there is no way to bootstrap the host.
-      # So we install them on the host then create/pull a custom docker image that we use to build the multiarch targets.
-      # We are always on the host runner but can use any docker image we need with the access the qemu emulation when required.
-      #
-      # We are using these pre configured toolchain images that allows me to remove 50% of the code/time from this action.
-      #
-      # https://github.com/userdocs/dcb/blob/main/Dockerfile
-      #
-      # The image does not run as root and has password-less sudo. There are two users username:1000 /home/username and github:1001 /home/github
-      # In the action it runs as 1001 /home/github and files should be available to the host. For local use, you might need -u 1000
-
       - name: Host - Create docker multiarch ${{ matrix.arch }} container
-        run: docker run --name multiarch -it -d -u 1001 -v ${{ github.workspace }}:/home/github ghcr.io/userdocs/dcb:${{ matrix.os_id }}-${{ matrix.os_codename }}-${{ matrix.arch }}
+        run: docker run --name multiarch -it -d -v ${{ github.workspace }}:/home/github ghcr.io/userdocs/dcb:${{ matrix.os_id }}-${{ matrix.os_codename }}-${{ matrix.arch }}
 
       - name: Docker - cmake and ninja download and install
         run: |
           docker exec multiarch curl -sNL "https://github.com/userdocs/cmake-crossbuild/releases/latest/download/${{ matrix.os_id }}-${{ matrix.os_codename }}-cmake-${{ matrix.arch }}.deb" -o ${{ matrix.os_id }}-${{ matrix.os_codename }}-cmake-${{ matrix.arch }}.deb
-          docker exec multiarch sudo dpkg -i ${{ matrix.os_id }}-${{ matrix.os_codename }}-cmake-${{ matrix.arch }}.deb
+          docker exec multiarch dpkg -i ${{ matrix.os_id }}-${{ matrix.os_codename }}-cmake-${{ matrix.arch }}.deb
 
       - name: Host - Git clone ${{ matrix.name }} ${{ env.github_branch }}
         run: git clone --single-branch --branch "${{ env.github_branch }}" --shallow-submodules --recurse-submodules --depth 1 https://github.com/zlib-ng/zlib-ng.git ${{ matrix.name }}
@@ -113,17 +93,17 @@ jobs:
 
       - name: Docker - ${{ matrix.name }} configure
         run: >
-          docker exec -w /home/github/${{ matrix.name }} multiarch cmake -Wno-dev -Wno-deprecated -G Ninja -B build
+          docker exec -u github:github -w /home/github/${{ matrix.name }} multiarch cmake -Wno-dev -Wno-deprecated -G Ninja -B build
           ${{ matrix.zlib_compat }}
           -D CMAKE_VERBOSE_MAKEFILE="ON"
           -D CMAKE_CXX_STANDARD="${{ env.cxx_standard }}"
           -D CMAKE_INSTALL_PREFIX="/home/github/build/${{ env.opt_dir_name }}"
 
       - name: Docker - ${{ matrix.name }} - cmake build
-        run: docker exec -w /home/github/${{ matrix.name }} multiarch cmake --build build
+        run: docker exec -u github:github -w /home/github/${{ matrix.name }} multiarch cmake --build build
 
       - name: Docker - ${{ matrix.name }} - cmake install
-        run: docker exec -w /home/github/${{ matrix.name }} multiarch cmake --install build
+        run: docker exec -u github:github -w /home/github/${{ matrix.name }} multiarch cmake --install build
 
       - name: Docker - Set deb dependencies for ${{ matrix.name }}
         run: printf '%s\n' "zlib-ng-deb-deps=none" >> $GITHUB_ENV
@@ -222,7 +202,7 @@ jobs:
       cancel-in-progress: true
     permissions:
       actions: write
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm
     env:
       GH_TOKEN: "${{ secrets.AUTO_RERUN || github.token }}"
       github_repo: "" # To use ci-auto-rerun-failed-jobs.yml hosted in a remote repository else default to the current repository. Requires PAT token AUTO_RERUN
@@ -234,6 +214,7 @@ jobs:
           persist-credentials: false
       - name: ci-auto-rerun-failed-jobs via ${{ env.github_repo || github.repository }}
         run: >
+          gh workflow run ci-auto-rerun-failed-jobs-action.yml
           --repo "${github_repo:-$GITHUB_REPOSITORY}"
           -f github_repo=${GITHUB_REPOSITORY}
           -f run_id=${GITHUB_RUN_ID}
