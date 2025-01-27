@@ -61,7 +61,7 @@ jobs:
     env:
       opt_dir_name: "opt/local"
       github_branch: "develop"
-      cxx_standard: "20"
+      cxx_standard: "17"
       GH_TOKEN: "${{ github.token }}"
 
     steps:
