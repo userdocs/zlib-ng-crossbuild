@@ -34,7 +34,7 @@ jobs:
       matrix:
         name: [zlib-ng]
         os_id: [debian, ubuntu]
-        os_codename: [bullseye, bookworm, focal, jammy, noble]
+        os_codename: [bullseye, bookworm, trixie, jammy, noble]
         arch: [amd64, armhf, arm64]
         zlib_compat: ["", "-D ZLIB_COMPAT=ON"]
         include:
@@ -46,8 +46,6 @@ jobs:
             header_name: ZLIB_VERSION
         exclude:
           - os_id: debian
-            os_codename: focal
-          - os_id: debian
             os_codename: jammy
           - os_id: debian
             os_codename: noble
@@ -55,6 +53,8 @@ jobs:
             os_codename: bullseye
           - os_id: ubuntu
             os_codename: bookworm
+          - os_id: ubuntu
+            os_codename: trixie
 
     name: ${{ matrix.os_id }}:${{ matrix.os_codename }} ${{ matrix.name }}${{ matrix.pretty_name }} ${{ matrix.arch }}
 
@@ -63,6 +63,7 @@ jobs:
       github_branch: "develop"
       cxx_standard: "17"
       GH_TOKEN: "${{ github.token }}"
+      container_name: "builder"
 
     steps:
       - name: Host - Checkout action
@@ -71,10 +72,18 @@ jobs:
           persist-credentials: false
 
       - name: Host - Bootstrap qemu
-        uses: userdocs/actions/qemu@main
+        uses: userdocs/actions/qemu@e74d179578ddcf1cd07cd9eefd0915f33a3bd600 # v1.0.1
 
-      - name: Host - Create docker multiarch ${{ matrix.arch }} container
-        run: docker run --name multiarch -it -d -v ${{ github.workspace }}:/home/github ghcr.io/userdocs/dcb:${{ matrix.os_id }}-${{ matrix.os_codename }}-${{ matrix.arch }}
+      - uses: userdocs/actions/qbt_docker@main
+        with:
+            # if the env.custom file exists, it will be used to pass environment
+            distinct_id: ""
+            use_host_env: "false"
+            container_name: ${{ env.container_name }}
+            os_id: ghcr.io/userdocs/dcb
+            os_version_id: ${{ matrix.os_id }}-${{ matrix.os_codename }}-${{ matrix.arch }}
+            uid: gh
+            gid: gh
 
       - name: Docker - cmake and ninja download and install
         run: |
